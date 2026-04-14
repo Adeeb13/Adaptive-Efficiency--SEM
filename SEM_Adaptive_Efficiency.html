@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Adaptive Efficiency — Self-Evolving Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#0a0a0f;
+  --paper:#f5f0e8;
+  --gold:#c9a84c;
+  --gold-dim:rgba(201,168,76,0.3);
+  --ember:#e05a2b;
+  --ice:#4fc4d8;
+  --green:#2ecc71;
+  --text:#e8e2d6;
+  --dim:#7a7570;
+  --card:rgba(255,255,255,0.03);
+  --border:rgba(201,168,76,0.15);
+}
+html,body{width:100%;overflow-x:hidden;background:var(--ink);color:var(--text);font-family:'DM Mono',monospace;scroll-behavior:smooth}
+
+/* CURSOR */
+#cur{position:fixed;width:6px;height:6px;background:var(--gold);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .08s}
+#cur-ring{position:fixed;width:32px;height:32px;border:1px solid var(--gold-dim);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .2s ease-out}
+body:hover #cur-ring{border-color:rgba(201,168,76,0.5)}
+
+/* LOADER */
+#loader{position:fixed;inset:0;z-index:2000;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.2s ease}
+#loader.gone{opacity:0;pointer-events:none}
+.ld-eq{display:flex;gap:6px;margin-bottom:40px}
+.ld-bar{width:3px;height:40px;background:var(--gold);transform-origin:bottom;animation:ld-pulse 1.2s ease-in-out infinite}
+.ld-bar:nth-child(1){animation-delay:0s}
+.ld-bar:nth-child(2){animation-delay:.15s}
+.ld-bar:nth-child(3){animation-delay:.3s}
+.ld-bar:nth-child(4){animation-delay:.45s}
+.ld-bar:nth-child(5){animation-delay:.6s}
+@keyframes ld-pulse{0%,100%{transform:scaleY(.2);opacity:.3}50%{transform:scaleY(1);opacity:1}}
+.ld-text{font-family:'Syne',sans-serif;font-size:11px;letter-spacing:.6em;color:var(--dim);animation:blink 2s ease infinite}
+@keyframes blink{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* VIDEO BG */
+#vid-bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none}
+#vid-bg video{width:100%;height:100%;object-fit:cover;opacity:.07}
+#vid-overlay{position:fixed;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 50% 30%,rgba(201,168,76,0.04) 0%,transparent 70%)}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:24px 48px;display:flex;justify-content:space-between;align-items:center;mix-blend-mode:normal}
+nav::after{content:'';position:absolute;bottom:0;left:48px;right:48px;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
+.nav-id{font-family:'Cormorant Garamond',serif;font-size:15px;font-style:italic;color:var(--gold);letter-spacing:.1em;opacity:.8}
+.nav-links{display:flex;gap:40px}
+.nav-lk{font-size:10px;letter-spacing:.3em;color:var(--dim);cursor:pointer;background:none;border:none;font-family:'DM Mono',monospace;transition:color .3s;text-decoration:none}
+.nav-lk:hover{color:var(--gold)}
+
+/* HERO */
+#hero{position:relative;height:100vh;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 10vw;z-index:10}
+.hero-eyebrow{font-size:10px;letter-spacing:.6em;color:var(--gold);opacity:.7;margin-bottom:28px;opacity:0;animation:rise .8s ease .8s forwards}
+.hero-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(52px,7.5vw,120px);line-height:.95;letter-spacing:-.01em;margin-bottom:32px;opacity:0;animation:rise 1s ease 1s forwards}
+.hero-title em{font-style:italic;color:var(--gold)}
+.hero-title .line2{color:rgba(232,226,214,0.35)}
+.hero-sub{max-width:480px;font-size:13px;line-height:2;color:var(--dim);letter-spacing:.05em;margin-bottom:48px;opacity:0;animation:rise .8s ease 1.3s forwards}
+.hero-btns{display:flex;gap:16px;opacity:0;animation:rise .8s ease 1.5s forwards}
+.btn-g{padding:12px 32px;border:1px solid var(--gold);color:var(--gold);background:transparent;font-size:10px;letter-spacing:.4em;cursor:pointer;font-family:'DM Mono',monospace;transition:all .4s;text-decoration:none;display:inline-block}
+.btn-g:hover{background:var(--gold);color:var(--ink)}
+.btn-ghost{padding:12px 32px;border:1px solid rgba(255,255,255,0.1);color:var(--dim);background:transparent;font-size:10px;letter-spacing:.4em;cursor:pointer;font-family:'DM Mono',monospace;transition:all .4s}
+.btn-ghost:hover{border-color:rgba(255,255,255,0.3);color:var(--text)}
+.hero-stat-row{position:absolute;bottom:48px;right:10vw;display:flex;gap:48px;opacity:0;animation:rise .8s ease 1.8s forwards}
+.h-stat{text-align:right}
+.h-stat .n{font-family:'Cormorant Garamond',serif;font-size:40px;font-weight:300;color:var(--gold)}
+.h-stat .l{font-size:9px;letter-spacing:.3em;color:var(--dim)}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* CANVAS HERO */
+#hero-canvas{position:absolute;right:0;top:0;bottom:0;width:50%;z-index:0;opacity:.6}
+
+/* SECTIONS */
+section{position:relative;z-index:10;padding:120px 10vw}
+.s-label{font-size:9px;letter-spacing:.6em;color:var(--gold);opacity:.6;margin-bottom:16px;display:block}
+.s-title{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(32px,4vw,56px);line-height:1.1;margin-bottom:24px}
+.s-body{font-size:12px;line-height:2.2;color:var(--dim);max-width:600px;letter-spacing:.04em}
+.s-divider{width:60px;height:1px;background:var(--gold);opacity:.4;margin:48px 0}
+
+/* EQUATION SECTION */
+#equations{background:var(--ink)}
+.eq-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:64px}
+.eq-card{background:var(--card);border:1px solid var(--border);padding:40px;position:relative;overflow:hidden;cursor:pointer;transition:all .4s}
+.eq-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:opacity .4s}
+.eq-card:hover::before{opacity:1}
+.eq-card:hover{border-color:rgba(201,168,76,0.4);background:rgba(201,168,76,0.03)}
+.eq-num{font-size:10px;letter-spacing:.4em;color:var(--gold);opacity:.5;margin-bottom:24px}
+.eq-formula{font-family:'Cormorant Garamond',serif;font-size:clamp(18px,2.5vw,32px);font-weight:300;color:var(--text);margin-bottom:20px;letter-spacing:.05em;line-height:1.4}
+.eq-formula .var{color:var(--gold);font-style:italic}
+.eq-formula .op{color:var(--ice);opacity:.8}
+.eq-name{font-size:10px;letter-spacing:.3em;color:var(--dim);margin-bottom:12px}
+.eq-desc{font-size:11px;line-height:1.9;color:var(--dim)}
+.eq-expand{max-height:0;overflow:hidden;transition:max-height .6s ease}
+.eq-card.open .eq-expand{max-height:300px}
+.eq-expand-inner{padding-top:20px;border-top:1px solid var(--border);margin-top:20px;font-size:11px;line-height:2;color:rgba(232,226,214,0.5)}
+.eq-tag{display:inline-block;padding:3px 10px;border:1px solid var(--border);font-size:9px;letter-spacing:.3em;color:var(--dim);margin-top:12px;border-radius:2px}
+.eq-tag.regime{border-color:rgba(224,90,43,0.4);color:var(--ember)}
+.eq-tag.core{border-color:rgba(201,168,76,0.4);color:var(--gold)}
+
+/* 3D VIEWER */
+#viewer-section{padding:0;min-height:100vh;display:flex;flex-direction:column}
+.viewer-header{padding:80px 10vw 48px;z-index:10;position:relative}
+#sem-canvas-wrap{flex:1;position:relative;min-height:600px}
+#sem3d{width:100%;height:100%;display:block}
+.view-controls{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:20}
+.vc-btn{padding:8px 20px;background:rgba(10,10,15,0.85);border:1px solid var(--border);color:var(--dim);font-size:9px;letter-spacing:.3em;cursor:pointer;font-family:'DM Mono',monospace;transition:all .3s;backdrop-filter:blur(12px)}
+.vc-btn:hover,.vc-btn.on{border-color:var(--gold-dim);color:var(--gold);background:rgba(201,168,76,0.08)}
+.canvas-hud{position:absolute;top:24px;left:24px;z-index:20;pointer-events:none}
+.hud-line{font-size:10px;font-family:'DM Mono',monospace;color:var(--gold);opacity:.6;display:block;margin-bottom:4px;letter-spacing:.2em}
+.canvas-legend{position:absolute;top:24px;right:24px;z-index:20;background:rgba(10,10,15,0.8);border:1px solid var(--border);padding:16px 20px;backdrop-filter:blur(8px)}
+.leg-item{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--dim);margin-bottom:8px;letter-spacing:.1em}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* HOW IT WORKS */
+#howit{background:var(--ink)}
+.layers-wrap{display:grid;grid-template-columns:1fr 1.2fr;gap:80px;margin-top:64px;align-items:start}
+.layer-list{display:flex;flex-direction:column;gap:0}
+.layer-item{padding:24px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:all .3s;position:relative}
+.layer-item::before{content:'';position:absolute;left:-10vw;top:0;bottom:0;width:0;background:var(--gold-dim);transition:width .4s;z-index:-1}
+.layer-item.active::before{width:calc(100% + 10vw)}
+.layer-item.active{padding-left:16px}
+.l-n{font-size:9px;letter-spacing:.4em;color:var(--gold);opacity:.5;margin-bottom:8px}
+.l-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;letter-spacing:.05em}
+.l-brief{font-size:11px;color:var(--dim);line-height:1.8}
+.layer-detail{position:sticky;top:120px}
+.ld-vis{width:100%;height:320px;border:1px solid var(--border);position:relative;overflow:hidden;background:rgba(0,0,0,0.3);margin-bottom:24px}
+.ld-desc{font-size:12px;line-height:2.1;color:var(--dim)}
+
+/* THEOREM */
+#theorem{background:linear-gradient(180deg,var(--ink) 0%,rgba(201,168,76,0.03) 50%,var(--ink) 100%)}
+.theorem-box{border:1px solid var(--gold-dim);padding:64px;position:relative;margin:64px 0;overflow:hidden}
+.theorem-box::after{content:'THEOREM';position:absolute;top:24px;right:32px;font-size:8px;letter-spacing:.6em;color:var(--gold);opacity:.3}
+.t-statement{font-family:'Cormorant Garamond',serif;font-size:clamp(16px,2vw,22px);font-weight:300;line-height:1.9;color:var(--text);margin-bottom:40px;font-style:italic}
+.t-conditions{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:40px}
+.t-cond{background:rgba(0,0,0,0.3);border-left:2px solid var(--gold);padding:24px}
+.t-cond.suf{border-color:var(--green)}
+.t-cond.fail{border-color:var(--ember)}
+.t-cond-label{font-size:9px;letter-spacing:.4em;color:var(--dim);margin-bottom:12px}
+.t-cond-eq{font-family:'Cormorant Garamond',serif;font-size:clamp(14px,1.5vw,20px);color:var(--text);line-height:1.7}
+.t-cond-eq .hi{color:var(--gold)}
+.t-cond-eq .suf-c{color:var(--green)}
+.t-cond-eq .fail-c{color:var(--ember)}
+.failure-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
+.fr-card{padding:32px 24px;border:1px solid var(--border);position:relative;overflow:hidden;transition:border-color .4s}
+.fr-card:hover{border-color:rgba(224,90,43,0.5)}
+.fr-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.fr-card:nth-child(1)::before{background:var(--ember)}
+.fr-card:nth-child(2)::before{background:var(--ice)}
+.fr-card:nth-child(3)::before{background:#a855f7}
+.fr-id{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:300;color:rgba(255,255,255,0.05);position:absolute;top:16px;right:20px}
+.fr-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--ember);margin-bottom:8px;letter-spacing:.1em}
+.fr-eq{font-family:'Cormorant Garamond',serif;font-size:15px;color:var(--text);margin-bottom:12px;opacity:.8}
+.fr-desc{font-size:10px;line-height:1.9;color:var(--dim)}
+
+/* LIVE SIM */
+#sim{background:var(--ink)}
+.sim-wrap{display:grid;grid-template-columns:1.3fr 1fr;gap:48px;margin-top:64px;align-items:start}
+#sim-canvas{width:100%;height:400px;border:1px solid var(--border);background:rgba(0,0,0,0.5);display:block}
+.sim-controls{display:flex;flex-direction:column;gap:16px}
+.sim-ctrl-group{border:1px solid var(--border);padding:24px}
+.sc-label{font-size:9px;letter-spacing:.4em;color:var(--gold);margin-bottom:16px;display:block}
+.sc-param{margin-bottom:16px}
+.sc-p-name{font-size:10px;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between}
+.sc-p-name span{color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:13px}
+input[type=range]{width:100%;-webkit-appearance:none;height:1px;background:var(--border);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer;border:2px solid var(--ink);box-shadow:0 0 8px rgba(201,168,76,0.5)}
+.sim-btn{padding:12px;border:1px solid var(--gold);color:var(--gold);background:transparent;font-size:10px;letter-spacing:.4em;cursor:pointer;font-family:'DM Mono',monospace;transition:all .4s;width:100%}
+.sim-btn:hover{background:var(--gold);color:var(--ink)}
+.sim-btn.stop{border-color:var(--ember);color:var(--ember)}
+.sim-btn.stop:hover{background:var(--ember);color:#fff}
+.sim-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.sm-box{background:var(--card);border:1px solid var(--border);padding:16px}
+.sm-val{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;color:var(--gold)}
+.sm-key{font-size:9px;letter-spacing:.3em;color:var(--dim);margin-top:4px}
+
+/* ARCHITECTURE */
+#arch{background:var(--ink)}
+#arch-canvas{width:100%;height:560px;border:1px solid var(--border);margin-top:64px;cursor:pointer}
+
+/* AUTHORS */
+#authors{background:rgba(201,168,76,0.02);border-top:1px solid var(--border);padding:80px 10vw}
+.auth-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:48px}
+.auth-card{padding:40px 32px;border:1px solid var(--border);position:relative;overflow:hidden;transition:all .4s}
+.auth-card:hover{border-color:var(--gold-dim)}
+.auth-role{font-size:9px;letter-spacing:.4em;color:var(--gold);margin-bottom:16px;opacity:.7}
+.auth-name{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:var(--text);margin-bottom:8px}
+.auth-contrib{font-size:11px;line-height:1.9;color:var(--dim)}
+.auth-card.primary::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent)}
+
+/* FOOTER */
+footer{padding:48px 10vw;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.f-copy{font-size:10px;letter-spacing:.2em;color:var(--dim)}
+.f-links{display:flex;gap:32px}
+.f-link{font-size:10px;letter-spacing:.2em;color:var(--dim);cursor:pointer;transition:color .3s;text-decoration:none}
+.f-link:hover{color:var(--gold)}
+
+/* SCROLL REVEAL */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .9s ease,transform .9s ease}
+.reveal.vis{opacity:1;transform:none}
+
+/* TOOLTIP */
+.tooltip{position:fixed;background:rgba(10,10,15,0.95);border:1px solid var(--border);padding:12px 16px;font-size:10px;color:var(--text);line-height:1.7;z-index:500;pointer-events:none;max-width:280px;backdrop-filter:blur(8px);opacity:0;transition:opacity .2s}
+
+@media(max-width:900px){
+  .eq-grid{grid-template-columns:1fr}
+  .layers-wrap{grid-template-columns:1fr}
+  .t-conditions{grid-template-columns:1fr}
+  .failure-grid{grid-template-columns:1fr}
+  .sim-wrap{grid-template-columns:1fr}
+  .auth-grid{grid-template-columns:1fr}
+  nav{padding:16px 24px}
+  section{padding:80px 6vw}
+  .hero-stat-row{display:none}
+  #hero{padding:0 6vw}
+}
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="cur-ring"></div>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="ld-eq">
+    <div class="ld-bar"></div><div class="ld-bar"></div>
+    <div class="ld-bar"></div><div class="ld-bar"></div>
+    <div class="ld-bar"></div>
+  </div>
+  <div class="ld-text">AE(t) = dC(t)/dt &nbsp;·&nbsp; INITIALISING</div>
+</div>
+
+<!-- VIDEO BACKGROUND -->
+<div id="vid-bg">
+  <video autoplay muted loop playsinline>
+    <source src="/mnt/user-data/uploads/SMBH_Sim_Thin0_4kFull.mp4" type="video/mp4"/>
+  </video>
+</div>
+<div id="vid-overlay"></div>
+
+<div id="tooltip" class="tooltip"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-id">Adaptive Efficiency &nbsp;/&nbsp; SEM</div>
+  <div class="nav-links">
+    <a class="nav-lk" href="#equations">EQUATIONS</a>
+    <a class="nav-lk" href="#viewer-section">3D MODEL</a>
+    <a class="nav-lk" href="#howit">ARCHITECTURE</a>
+    <a class="nav-lk" href="#theorem">THEOREM</a>
+    <a class="nav-lk" href="#sim">SIMULATION</a>
+    <a class="nav-lk" href="#authors">AUTHORS</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <span class="hero-eyebrow">A UNIFIED FRAMEWORK FOR COGNITIVE SELF-OPTIMISATION</span>
+  <h1 class="hero-title">
+    <em>Adaptive</em><br>
+    <em>Efficiency</em><br>
+    <span class="line2">&amp; the Self-Evolving</span><br>
+    <span class="line2">Machine</span>
+  </h1>
+  <p class="hero-sub">Where thermodynamic physics meets artificial cognition. A formally grounded metric — and a machine architecture — for systems that structurally improve themselves over time.</p>
+  <div class="hero-btns">
+    <a class="btn-g" href="#equations">EXPLORE THE FRAMEWORK</a>
+    <a class="btn-ghost" href="#sim">LIVE SIMULATION</a>
+  </div>
+  <div class="hero-stat-row">
+    <div class="h-stat"><div class="n">105%</div><div class="l">RELATIVE IMPROVEMENT</div></div>
+    <div class="h-stat"><div class="n">1000</div><div class="l">MONTE CARLO RUNS</div></div>
+    <div class="h-stat"><div class="n">91.3%</div><div class="l">SUSTAINED POSITIVE AE</div></div>
+  </div>
+</section>
+
+<!-- EQUATIONS -->
+<section id="equations">
+  <span class="s-label">MATHEMATICAL FOUNDATION</span>
+  <h2 class="s-title reveal">The Equations That<br>Define Self-Improvement</h2>
+  <p class="s-body reveal">Every claim in this framework is formally grounded. No metaphor without mathematics. Click any equation to expand its physical derivation and meaning.</p>
+
+  <div class="eq-grid reveal" id="eqGrid">
+
+    <div class="eq-card" onclick="toggleEq(this)">
+      <div class="eq-num">EQ. 01 &nbsp;·&nbsp; CORE DEFINITION</div>
+      <div class="eq-name">ADAPTIVE EFFICIENCY</div>
+      <div class="eq-formula">
+        <span class="var">AE</span>(t) <span class="op">=</span> d<span class="var">C</span>(t) / dt
+      </div>
+      <div class="eq-desc">The instantaneous rate of change of the Capability Function. Unlike thermodynamic efficiency, AE has no Carnot ceiling — it is bounded only by resource, noise, and information-theoretic limits.</div>
+      <div class="eq-expand">
+        <div class="eq-expand-inner">
+          C(t) is a weighted composite: C(t) = α·C<sub>cog</sub>(t) + β·C<sub>phys</sub>(t), where α = 0.7, β = 0.3. The benchmark suite B(t) is dynamic — harder tasks are introduced as capability grows, preventing C(t) from saturating on a fixed distribution. This is what distinguishes AE from all static performance metrics.
+        </div>
+      </div>
+      <span class="eq-tag core">OPEN SYSTEM</span>
+    </div>
+
+    <div class="eq-card" onclick="toggleEq(this)">
+      <div class="eq-num">EQ. 02 &nbsp;·&nbsp; CAPABILITY FUNCTION</div>
+      <div class="eq-name">WEIGHTED COMPOSITE</div>
+      <div class="eq-formula">
+        <span class="var">C</span>(t) <span class="op">=</span> <span class="var">α</span>·<span class="var">C</span><sub>cog</sub> <span class="op">+</span> <span class="var">β</span>·<span class="var">C</span><sub>phys</sub>
+      </div>
+      <div class="eq-desc">Cognitive and physical capability components, weighted α=0.7 and β=0.3, measured against a dynamic benchmark B(t) that scales with the agent's improvement.</div>
+      <div class="eq-expand">
+        <div class="eq-expand-inner">
+          C<sub>cog</sub> measures performance on reasoning, coding, and scientific problem-solving. C<sub>phys</sub> covers embodied morphological tasks. The α/β = 7/3 ratio means the AE phase portrait gradient is steeper in the cognitive direction — prioritize cognitive optimization under resource constraints.
+        </div>
+      </div>
+      <span class="eq-tag core">COMPOSITE METRIC</span>
+    </div>
+
+    <div class="eq-card" onclick="toggleEq(this)">
+      <div class="eq-num">EQ. 03 &nbsp;·&nbsp; STOCHASTIC DYNAMICS</div>
+      <div class="eq-name">PHYSICAL REALITY MODEL</div>
+      <div class="eq-formula" style="font-size:clamp(12px,1.4vw,18px)">
+        <span class="var">C</span>(t+1) <span class="op">=</span> <span class="var">C</span>(t) <span class="op">+</span> <span class="var">F</span>(t)·[<span class="var">λ</span><sub>eff</sub>·<span class="var">C</span>·(1−<span class="var">C</span>/<span class="var">C</span><sub>max</sub>) <span class="op">−</span> <span class="var">δ</span><sub>K</sub>] <span class="op">+</span> <span class="var">σ</span>·<span class="var">C</span>·<span class="var">ξ</span>(t)
+      </div>
+      <div class="eq-desc">The full stochastic model incorporating Gaussian noise ξ(t)∼N(0,1), failure events F(t)∼Bernoulli(1−p<sub>fail</sub>), logistic saturation, and the algorithmic incompressibility correction δ<sub>K</sub>(t).</div>
+      <div class="eq-expand">
+        <div class="eq-expand-inner">
+          The logistic saturation term C·(1−C/C<sub>max</sub>) is deliberately analogous to resource-limited population dynamics and thermodynamic phase transitions. λ<sub>eff</sub> = α·λ<sub>cog</sub> + β·λ<sub>phys</sub>. The δ<sub>K</sub>(t) term increases monotonically with agent complexity, encoding the Kolmogorov incompressibility ceiling.
+        </div>
+      </div>
+      <span class="eq-tag core">STOCHASTIC</span>
+    </div>
+
+    <div class="eq-card" onclick="toggleEq(this)">
+      <div class="eq-num">EQ. 04 &nbsp;·&nbsp; LANDAUER BOUND</div>
+      <div class="eq-name">THERMODYNAMIC FLOOR</div>
+      <div class="eq-formula">
+        <span class="var">E</span><sub>erase</sub> <span class="op">≥</span> <span class="var">k</span><sub>B</sub> · <span class="var">T</span> · ln(2)
+      </div>
+      <div class="eq-desc">≈ 2.87 × 10⁻²¹ joules at T = 300K. Every self-modification cycle that erases a candidate has a non-zero thermodynamic cost. The DGM archive strategy is thermodynamically optimal.</div>
+      <div class="eq-expand">
+        <div class="eq-expand-inner">
+          Three engineering consequences: (1) retained modifications are thermodynamically cheaper than erased ones; (2) indefinite self-improvement at zero cost is physically impossible; (3) more compressible agent descriptions require less energy to modify — compressed, general representations are thermodynamically favoured over verbose, specialised ones.
+        </div>
+      </div>
+      <span class="eq-tag core">LANDAUER 1961</span>
+    </div>
+
+    <div class="eq-card" onclick="toggleEq(this)">
+      <div class="eq-num">EQ. 05 &nbsp;·&nbsp; CARNOT COMPARISON</div>
+      <div class="eq-name">THERMODYNAMIC CEILING</div>
+      <div class="eq-formula">
+        <span class="var">η</span><sub>Carnot</sub> <span class="op">=</span> 1 <span class="op">−</span> <span class="var">T</span><sub>cold</sub> / <span class="var">T</span><sub>hot</sub>
+      </div>
+      <div class="eq-desc">AE operates in a categorically different domain from thermodynamic efficiency. Carnot bounds closed systems. AE bounds open systems that import free energy and export entropy — exactly as living systems do.</div>
+      <div class="eq-expand">
+        <div class="eq-expand-inner">
+          The SEM is a Prigogine dissipative structure: it imports computational energy and information, exports heat and discarded modifications, and — if operating above the sufficient condition threshold — increases its internal organizational complexity. This is not metaphor; it is the same mathematical structure as Bénard convection cells and biological metabolism.
+        </div>
+      </div>
+      <span class="eq-tag core">PRIGOGINE ANALOG</span>
+    </div>
+
+    <div class="eq-card" onclick="toggleEq(this)">
+      <div class="eq-num">EQ. 06 &nbsp;·&nbsp; SUFFICIENT CONDITION</div>
+      <div class="eq-name">THEOREM CORE</div>
+      <div class="eq-formula" style="font-size:clamp(11px,1.3vw,17px)">
+        <span class="var">λ</span><sub>eff</sub> <span class="op">&gt;</span> σ²/2 <span class="op">+</span> <span class="var">p</span><sub>fail</sub>·<span class="var">μ</span><sub>fail</sub> <span class="op">+</span> <span class="var">δ</span><sub>K,max</sub> / <span class="var">C</span><sub>0</sub>
+      </div>
+      <div class="eq-desc">The sufficient condition for sustained positive AE over an interval [0, T]. When this inequality holds, the system is guaranteed to self-improve on average, regardless of noise realisation.</div>
+      <div class="eq-expand">
+        <div class="eq-expand-inner">
+          Three terms on the right: σ²/2 is the noise dominance threshold (FR-1), p<sub>fail</sub>·μ<sub>fail</sub> is the expected capability loss per failure cycle, and δ<sub>K,max</sub>/C₀ is the normalised algorithmic incompressibility correction. All three are empirically estimable. The theorem is falsifiable.
+        </div>
+      </div>
+      <span class="eq-tag regime">SUFFICIENT CONDITION</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- 3D VIEWER -->
+<section id="viewer-section" style="padding:0">
+  <div class="viewer-header">
+    <span class="s-label reveal">INTERACTIVE 3D MODEL</span>
+    <h2 class="s-title reveal">The Self-Evolving Machine<br>in Three Dimensions</h2>
+    <p class="s-body reveal">Explore the SEM cognitive architecture spatially. Each node is a functional layer. Drag to orbit, scroll to zoom. Click a node for details.</p>
+  </div>
+  <div id="sem-canvas-wrap">
+    <canvas id="sem3d"></canvas>
+    <div class="canvas-hud">
+      <span class="hud-line" id="hud-node">HOVER NODE FOR INFO</span>
+      <span class="hud-line" id="hud-ae">AE(t) = —</span>
+      <span class="hud-line" id="hud-cycle">CYCLE — / —</span>
+    </div>
+    <div class="canvas-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#c9a84c"></div> Core Engine</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#4fc4d8"></div> Data Flow</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#2ecc71"></div> Safety Gate</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#e05a2b"></div> Failure / Revert</div>
+    </div>
+    <div class="view-controls">
+      <button class="vc-btn on" onclick="setView('orbit')">ORBIT</button>
+      <button class="vc-btn" onclick="setView('top')">TOP</button>
+      <button class="vc-btn" onclick="setView('side')">SIDE</button>
+      <button class="vc-btn" onclick="toggleAnim()">PAUSE/RESUME</button>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="howit">
+  <span class="s-label">SYSTEM ARCHITECTURE</span>
+  <h2 class="s-title reveal">Six Layers.<br>One Closed Loop.</h2>
+  <p class="s-body reveal">The SEM is not a model — it is a closed-loop architecture where safety is embedded thermodynamically inside the evolution cycle, not appended as an external guardrail.</p>
+  <div class="layers-wrap">
+    <div class="layer-list" id="layerList">
+      <div class="layer-item active" onclick="selectLayer(0)">
+        <div class="l-n">LAYER 01</div>
+        <div class="l-name">Environmental State Encoder</div>
+        <div class="l-brief">Physics-aware embedding of task signals, sensor data, and performance feedback into structured vectors for the DGM core.</div>
+      </div>
+      <div class="layer-item" onclick="selectLayer(1)">
+        <div class="l-n">LAYER 02</div>
+        <div class="l-name">DGM Cognitive Core</div>
+        <div class="l-brief">Foundation-model-driven self-modification engine. Generates candidate rewrites of the agent's own codebase. Operates in open-ended archive mode for second-order improvement.</div>
+      </div>
+      <div class="layer-item" onclick="selectLayer(2)">
+        <div class="l-n">LAYER 03</div>
+        <div class="l-name">AE Evaluator</div>
+        <div class="l-brief">Computes AE(t) = dC(t)/dt by benchmarking the candidate agent. Accept if AE_new > 0; archive and revert otherwise.</div>
+      </div>
+      <div class="layer-item" onclick="selectLayer(3)">
+        <div class="l-n">LAYER 04</div>
+        <div class="l-name">Agent Archive</div>
+        <div class="l-brief">All variants — successful and suboptimal — are stored with metadata. Thermodynamically optimal per Landauer: retaining is cheaper than erasing.</div>
+      </div>
+      <div class="layer-item" onclick="selectLayer(4)">
+        <div class="l-n">LAYER 05</div>
+        <div class="l-name">Physical Substrate (MSRR)</div>
+        <div class="l-brief">For embodied implementations: Modular Self-Reconfiguring Robotics interface. Issues morphological directives on cognitive command.</div>
+      </div>
+      <div class="layer-item" onclick="selectLayer(5)">
+        <div class="l-n">LAYER 06</div>
+        <div class="l-name">Safety Monitor</div>
+        <div class="l-brief">Alignment as thermodynamic constraint, not external override. Enforces resource bounds (C_max), objective immutability, and the sufficient condition for positive AE.</div>
+      </div>
+    </div>
+    <div class="layer-detail">
+      <div class="ld-vis" id="ldVis">
+        <canvas id="layerCanvas" style="width:100%;height:100%"></canvas>
+      </div>
+      <p class="ld-desc" id="ldDesc">The State Encoder transforms raw environmental signals into structured embeddings. For physical tasks, the encoding is physics-aware — geometric constraints, energy budgets, and material properties are represented explicitly. For cognitive tasks, the encoder adds domain tags, difficulty estimates, and historical performance vectors that inform the DGM core's modification strategy.</p>
+    </div>
+  </div>
+</section>
+
+<!-- THEOREM -->
+<section id="theorem">
+  <span class="s-label">FORMAL RESULT</span>
+  <h2 class="s-title reveal">The Adaptive Efficiency<br>Growth Theorem</h2>
+
+  <div class="theorem-box reveal">
+    <p class="t-statement">"Let a Self-Evolving Machine operate under the stochastic model. Necessary and sufficient conditions for sustained expected positive AE, together with three explicit failure regimes, follow from the dynamics of the Capability Function under Gaussian noise, failure probability, resource saturation, and algorithmic incompressibility."</p>
+
+    <div class="t-conditions">
+      <div class="t-cond">
+        <div class="t-cond-label">NECESSARY CONDITION FOR E[AE(t)] > 0</div>
+        <div class="t-cond-eq">
+          <span class="hi">λ<sub>eff</sub></span> · C · (1 − C/C<sub>max</sub>) > δ<sub>K</sub>(t) + p<sub>fail</sub> · μ<sub>fail</sub> · C
+        </div>
+      </div>
+      <div class="t-cond suf">
+        <div class="t-cond-label">SUFFICIENT CONDITION FOR SUSTAINED AE > 0 ON [0, T]</div>
+        <div class="t-cond-eq">
+          <span class="suf-c">λ<sub>eff</sub></span> > σ²/2 + p<sub>fail</sub>·μ<sub>fail</sub> + δ<sub>K,max</sub>/C<sub>0</sub>
+        </div>
+      </div>
+    </div>
+
+    <div class="failure-grid">
+      <div class="fr-card">
+        <div class="fr-id">FR1</div>
+        <div class="fr-name">NOISE DOMINANCE</div>
+        <div class="fr-eq">σ²/2 > λ<sub>eff</sub> − p<sub>fail</sub>·μ<sub>fail</sub></div>
+        <div class="fr-desc">Analog of the order-disorder phase transition in spin glasses. Below the critical signal-to-noise ratio, no improving state is stable. Stochastic fluctuations overwhelm the systematic improvement signal.</div>
+      </div>
+      <div class="fr-card">
+        <div class="fr-id">FR2</div>
+        <div class="fr-name">RESOURCE SATURATION</div>
+        <div class="fr-eq">C(t) → C<sub>max</sub> ⇒ AE → −δ<sub>K</sub> &lt; 0</div>
+        <div class="fr-desc">The logistic growth ceiling. As capability approaches C<sub>max</sub>, the improvement gradient shrinks and the incompressibility correction dominates. More compute delays but does not eliminate this regime.</div>
+      </div>
+      <div class="fr-card">
+        <div class="fr-id">FR3</div>
+        <div class="fr-name">ALGORITHMIC LIMIT</div>
+        <div class="fr-eq">δ<sub>K</sub>(t) ≥ λ<sub>eff</sub>·C·(1−C/C<sub>max</sub>)</div>
+        <div class="fr-desc">The deepest failure mode, grounded in Chaitin-Kolmogorov theory. Escape requires not more iterations of the same search, but a second-order innovation in the modification strategy itself.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIVE SIMULATION -->
+<section id="sim">
+  <span class="s-label">LIVE SIMULATION</span>
+  <h2 class="s-title reveal">Run the Monte Carlo<br>in Your Browser</h2>
+  <p class="s-body reveal">Adjust the physical parameters and observe SEM vs. RL vs. Static baseline. All 1,000 Monte Carlo runs distilled into a real-time interactive model. Parameters are the same as Table 2 of the paper by default.</p>
+
+  <div class="sim-wrap reveal">
+    <div>
+      <canvas id="sim-canvas"></canvas>
+      <div class="sim-metrics" id="simMetrics">
+        <div class="sm-box"><div class="sm-val" id="m-sem">—</div><div class="sm-key">SEM C(t)</div></div>
+        <div class="sm-box"><div class="sm-val" id="m-rl">—</div><div class="sm-key">RL C(t)</div></div>
+        <div class="sm-box"><div class="sm-val" id="m-ae">—</div><div class="sm-key">AE(t)</div></div>
+        <div class="sm-box"><div class="sm-val" id="m-cycle">0</div><div class="sm-key">CYCLE</div></div>
+      </div>
+    </div>
+    <div class="sim-controls">
+      <div class="sim-ctrl-group">
+        <span class="sc-label">PARAMETERS</span>
+        <div class="sc-param">
+          <div class="sc-p-name">λ<sub>cog</sub> — Cognitive Rate <span id="v-lcog">0.050</span></div>
+          <input type="range" min="0.01" max="0.12" step="0.001" value="0.05" oninput="updateParam('lcog',this.value)">
+        </div>
+        <div class="sc-param">
+          <div class="sc-p-name">λ<sub>phys</sub> — Physical Rate <span id="v-lphys">0.030</span></div>
+          <input type="range" min="0.005" max="0.08" step="0.001" value="0.03" oninput="updateParam('lphys',this.value)">
+        </div>
+        <div class="sc-param">
+          <div class="sc-p-name">σ — Noise Amplitude <span id="v-sigma">0.080</span></div>
+          <input type="range" min="0.01" max="0.3" step="0.005" value="0.08" oninput="updateParam('sigma',this.value)">
+        </div>
+        <div class="sc-param">
+          <div class="sc-p-name">p<sub>fail</sub> — Failure Probability <span id="v-pfail">0.070</span></div>
+          <input type="range" min="0" max="0.5" step="0.01" value="0.07" oninput="updateParam('pfail',this.value)">
+        </div>
+      </div>
+      <button class="sim-btn" id="simBtn" onclick="simToggle()">▶ RUN SIMULATION</button>
+      <button class="sim-btn" onclick="simReset()">RESET</button>
+      <div style="margin-top:16px;font-size:10px;line-height:2;color:var(--dim);">
+        <div id="regime-indicator" style="padding:12px;border:1px solid var(--border);font-size:10px;color:var(--dim);letter-spacing:.1em;line-height:1.8">
+          REGIME: Awaiting run...
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE DIAGRAM -->
+<section id="arch">
+  <span class="s-label">PSEUDOCODE &amp; LOOP</span>
+  <h2 class="s-title reveal">The Self-Evolution Loop</h2>
+  <p class="s-body reveal">The complete SEM algorithm in one closed cycle. Click any step to see its physical interpretation.</p>
+  <canvas id="arch-canvas" class="reveal"></canvas>
+</section>
+
+<!-- AUTHORS -->
+<section id="authors" style="background:rgba(201,168,76,0.02);border-top:1px solid var(--border);padding:80px 10vw">
+  <span class="s-label">RESEARCH TEAM</span>
+  <h2 class="s-title reveal">The Minds Behind SEM</h2>
+  <div class="auth-grid reveal">
+    <div class="auth-card primary">
+      <div class="auth-role">IDEA ORIGINATOR &nbsp;·&nbsp; LEAD AUTHOR</div>
+      <div class="auth-name">Kazi Mahir Adeeb</div>
+      <div class="auth-contrib">Conceived and originated the Adaptive Efficiency framework, the Self-Evolving Machine paradigm, and the physical grounding in non-equilibrium thermodynamics. Defined the core research questions and the theoretical architecture.</div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-role">CO-AUTHOR &nbsp;·&nbsp; EXECUTION</div>
+      <div class="auth-name">S M Shadman Khan</div>
+      <div class="auth-contrib">Contributed to the mathematical formalisation, stochastic simulation design, and experimental validation of the framework. Co-developed the Monte Carlo analysis and result interpretation.</div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-role">CO-AUTHOR &nbsp;·&nbsp; EXECUTION</div>
+      <div class="auth-name">Abuhena Shuvro</div>
+      <div class="auth-contrib">Contributed to the system architecture design, prototype implementation, and the alignment framework. Co-developed the pseudocode specification and ablation study methodology.</div>
+    </div>
+  </div>
+  <div class="s-divider"></div>
+  <p class="s-body" style="max-width:700px;font-size:11px;line-height:2.2;color:var(--dim)">
+    <em style="color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:18px">"The deepest implication of this work may be the following..."</em><br><br>
+    The Second Law of Thermodynamics tells us that the universe tends toward maximum entropy — disorder, equilibrium, the erasure of organised structure. Life, cognition, and intelligence are local, temporary, energy-sustained exceptions. Building machines that can join this project is not merely a technological ambition. It is the continuation of the oldest project in the history of organised matter: the effort to create and maintain complexity in a universe that perpetually tends to erase it.
+    <br><br>
+    <span style="color:rgba(232,226,214,0.4);font-size:10px;letter-spacing:.2em">— ADEEB, KHAN &amp; SHUVRO, 2025</span>
+  </p>
+</section>
+
+<footer>
+  <div class="f-copy">© 2025 Adeeb, Khan &amp; Shuvro &nbsp;·&nbsp; Adaptive Efficiency in Self-Improving AI Systems</div>
+  <div class="f-links">
+    <a class="f-link" href="#hero">TOP</a>
+    <a class="f-link" href="#equations">Equations</a>
+    <a class="f-link" href="#theorem">Theorem</a>
+    <a class="f-link" href="#sim">Simulation</a>
+  </div>
+</footer>
+
+<script>
+// ─── CURSOR ────────────────────────────────────────────────
+const cur=document.getElementById('cur'),ring=document.getElementById('cur-ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px'});
+(function animRing(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(animRing)})();
+
+// ─── LOADER ─────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  setTimeout(()=>document.getElementById('loader').classList.add('gone'),1800);
+});
+
+// ─── SCROLL REVEAL ──────────────────────────────────────────
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+
+// ─── HERO CANVAS (flowing entropy lines) ────────────────────
+(function(){
+  const c=document.getElementById('hero-canvas');
+  const ctx=c.getContext('2d');
+  let W,H,lines=[];
+  function resize(){
+    W=c.width=c.offsetWidth;H=c.height=c.offsetHeight;
+    lines=Array.from({length:30},(_,i)=>({x:Math.random()*W,y:Math.random()*H,vy:-.2-Math.random()*.6,vx:(Math.random()-.5)*.3,alpha:Math.random(),len:20+Math.random()*80,w:.5+Math.random()}));
+  }
+  resize();window.addEventListener('resize',resize);
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    lines.forEach(l=>{
+      l.y+=l.vy;l.x+=l.vx;l.alpha+=.003;
+      if(l.y<-100){l.y=H+10;l.x=Math.random()*W;l.alpha=0}
+      const a=Math.min(l.alpha,.4)*Math.sin(l.alpha*Math.PI);
+      ctx.strokeStyle=`rgba(201,168,76,${a})`;
+      ctx.lineWidth=l.w;
+      ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(l.x-l.vx*l.len,l.y-l.vy*l.len);ctx.stroke();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ─── EQUATION TOGGLE ────────────────────────────────────────
+function toggleEq(card){card.classList.toggle('open')}
+
+// ─── 3D SEM ARCHITECTURE (Three.js via CDN) ─────────────────
+let scene3,camera3,renderer3,animId3,animPaused=false;
+let camR=14,camPhi=Math.PI/3,camTheta=.4,targetTheta=.4,targetPhi=Math.PI/3,dragging3=false,lastX3,lastY3;
+const nodes3=[
+  {id:0,name:'ENCODER',color:0x4fc4d8,pos:[0,4,0],radius:.6},
+  {id:1,name:'DGM CORE',color:0xc9a84c,pos:[-3,1.5,0],radius:.8},
+  {id:2,name:'AE EVAL',color:0xc9a84c,pos:[0,0,0],radius:.65},
+  {id:3,name:'ARCHIVE',color:0x4fc4d8,pos:[3,1.5,0],radius:.6},
+  {id:4,name:'MSRR',color:0x888888,pos:[0,-2.5,0],radius:.55},
+  {id:5,name:'SAFETY',color:0x2ecc71,pos:[0,-4.5,0],radius:.7},
+];
+const edges3=[[0,1],[0,2],[1,2],[2,3],[2,4],[4,5],[5,0],[1,3]];
+let nodeMeshes=[],edgeLines=[],particles3=[];
+let hoveredNode=null;
+
+(function initSEM3D(){
+  const wrap=document.getElementById('sem-canvas-wrap');
+  const canvas=document.getElementById('sem3d');
+
+  const W=wrap.clientWidth,H=Math.max(wrap.clientHeight,500);
+  canvas.width=W;canvas.height=H;
+
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  s.onload=()=>{
+    scene3=new THREE.Scene();
+    camera3=new THREE.PerspectiveCamera(45,W/H,.1,200);
+    renderer3=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+    renderer3.setSize(W,H);
+    renderer3.setClearColor(0x000000,0);
+    renderer3.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+    // Ambient
+    scene3.add(new THREE.AmbientLight(0xffffff,.3));
+    const pl=new THREE.PointLight(0xc9a84c,2,30);pl.position.set(0,5,5);scene3.add(pl);
+    const pl2=new THREE.PointLight(0x4fc4d8,1.5,25);pl2.position.set(-5,-3,5);scene3.add(pl2);
+
+    // Nodes
+    nodes3.forEach(n=>{
+      const geo=new THREE.SphereGeometry(n.radius,32,32);
+      const mat=new THREE.MeshPhongMaterial({color:n.color,emissive:n.color,emissiveIntensity:.4,transparent:true,opacity:.9});
+      const m=new THREE.Mesh(geo,mat);
+      m.position.set(...n.pos);m.userData=n;
+      scene3.add(m);nodeMeshes.push(m);
+
+      // Halo ring
+      const rGeo=new THREE.TorusGeometry(n.radius*1.5,.02,8,64);
+      const rMat=new THREE.MeshBasicMaterial({color:n.color,transparent:true,opacity:.25});
+      const ring=new THREE.Mesh(rGeo,rMat);ring.position.set(...n.pos);
+      scene3.add(ring);
+    });
+
+    // Edges as glowing lines
+    edges3.forEach(([a,b])=>{
+      const pA=new THREE.Vector3(...nodes3[a].pos),pB=new THREE.Vector3(...nodes3[b].pos);
+      const pts=[pA,pB];
+      const geo=new THREE.BufferGeometry().setFromPoints(pts);
+      const mat=new THREE.LineBasicMaterial({color:0x444444,transparent:true,opacity:.35});
+      const line=new THREE.Line(geo,mat);scene3.add(line);edgeLines.push(line);
+    });
+
+    // Floating particle data flow
+    for(let i=0;i<80;i++){
+      const geo=new THREE.SphereGeometry(.04,4,4);
+      const col=Math.random()>.5?0xc9a84c:0x4fc4d8;
+      const mat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.8});
+      const p=new THREE.Mesh(geo,mat);
+      const eIdx=Math.floor(Math.random()*edges3.length);
+      const [a,b]=edges3[eIdx];
+      p.userData={t:Math.random(),edgeA:a,edgeB:b,speed:.003+Math.random()*.008,col};
+      scene3.add(p);particles3.push(p);
+    }
+
+    // Raycaster for hover
+    const raycaster=new THREE.Raycaster();
+    const mouse=new THREE.Vector2();
+    canvas.addEventListener('mousemove',e=>{
+      const rect=canvas.getBoundingClientRect();
+      mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+      mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+      raycaster.setFromCamera(mouse,camera3);
+      const hits=raycaster.intersectObjects(nodeMeshes);
+      if(hits.length){
+        hoveredNode=hits[0].object.userData;
+        document.getElementById('hud-node').textContent='NODE: '+hoveredNode.name;
+        canvas.style.cursor='pointer';
+      } else {
+        hoveredNode=null;
+        document.getElementById('hud-node').textContent='DRAG TO ORBIT · SCROLL ZOOM';
+        canvas.style.cursor='grab';
+      }
+    });
+
+    // Drag orbit
+    canvas.addEventListener('mousedown',e=>{dragging3=true;lastX3=e.clientX;lastY3=e.clientY;canvas.style.cursor='grabbing'});
+    window.addEventListener('mouseup',()=>{dragging3=false;canvas.style.cursor='grab'});
+    window.addEventListener('mousemove',e=>{
+      if(!dragging3)return;
+      const dx=e.clientX-lastX3,dy=e.clientY-lastY3;
+      targetTheta+=dx*.006;targetPhi=Math.max(.2,Math.min(Math.PI-.2,targetPhi+dy*.004));
+      lastX3=e.clientX;lastY3=e.clientY;
+    });
+    canvas.addEventListener('wheel',e=>{camR=Math.max(5,Math.min(30,camR+e.deltaY*.02));e.preventDefault()},{passive:false});
+    canvas.addEventListener('touchstart',e=>{lastX3=e.touches[0].clientX;lastY3=e.touches[0].clientY},{passive:true});
+    canvas.addEventListener('touchmove',e=>{
+      const dx=e.touches[0].clientX-lastX3,dy=e.touches[0].clientY-lastY3;
+      targetTheta+=dx*.005;targetPhi=Math.max(.2,Math.min(Math.PI-.2,targetPhi+dy*.004));
+      lastX3=e.touches[0].clientX;lastY3=e.touches[0].clientY;
+    },{passive:true});
+
+    window.addEventListener('resize',()=>{
+      const w=wrap.clientWidth,h=wrap.clientHeight||500;
+      renderer3.setSize(w,h);camera3.aspect=w/h;camera3.updateProjectionMatrix();
+    });
+
+    let t3=0,cycle3=0;
+    (function loop3(){
+      animId3=requestAnimationFrame(loop3);
+      if(animPaused)return;
+      t3+=.008;
+
+      camTheta+=(targetTheta-camTheta)*.05;
+      camPhi+=(targetPhi-camPhi)*.05;
+      camera3.position.set(camR*Math.sin(camPhi)*Math.cos(camTheta),camR*Math.cos(camPhi),camR*Math.sin(camPhi)*Math.sin(camTheta));
+      camera3.lookAt(0,0,0);
+
+      // Pulse nodes
+      nodeMeshes.forEach((m,i)=>{
+        const base=nodes3[i].radius;
+        const pulse=hoveredNode&&hoveredNode.id===i?1.25+Math.sin(t3*5)*.1:1+Math.sin(t3*2+i)*.04;
+        m.scale.setScalar(pulse);
+        m.material.emissiveIntensity=hoveredNode&&hoveredNode.id===i?.9:.3+Math.sin(t3+i*.5)*.1;
+      });
+
+      // Animate particles along edges
+      particles3.forEach(p=>{
+        p.userData.t+=p.userData.speed;
+        if(p.userData.t>1){p.userData.t=0;const eIdx=Math.floor(Math.random()*edges3.length);p.userData.edgeA=edges3[eIdx][0];p.userData.edgeB=edges3[eIdx][1]}
+        const a=nodes3[p.userData.edgeA].pos,b=nodes3[p.userData.edgeB].pos;
+        const tt=p.userData.t;
+        p.position.set(a[0]*(1-tt)+b[0]*tt,a[1]*(1-tt)+b[1]*tt,a[2]*(1-tt)+b[2]*tt);
+        p.material.opacity=Math.sin(tt*Math.PI)*.9+.1;
+      });
+
+      cycle3=Math.floor(t3*10)%100;
+      const ae=(.5+Math.sin(t3*1.5)*.3+Math.random()*.08).toFixed(3);
+      document.getElementById('hud-ae').textContent='AE(t) = '+ae;
+      document.getElementById('hud-cycle').textContent='CYCLE '+cycle3+' / 100';
+
+      renderer3.render(scene3,camera3);
+    })();
+  };
+  document.head.appendChild(s);
+})();
+
+function setView(v){
+  if(v==='orbit'){targetTheta=.4;targetPhi=Math.PI/3;camR=14}
+  else if(v==='top'){targetPhi=.01;targetTheta=0;camR=14}
+  else if(v==='side'){targetPhi=Math.PI/2;targetTheta=0;camR=14}
+  document.querySelectorAll('.vc-btn').forEach(b=>b.classList.remove('on'));
+  event.target.classList.add('on');
+}
+function toggleAnim(){animPaused=!animPaused}
+
+// ─── LAYER DETAIL VISUALISER ────────────────────────────────
+const layerDescs=[
+  "The State Encoder transforms raw environmental signals into structured embeddings. For physical tasks, encoding is physics-aware — geometric constraints, energy budgets, and material properties. For cognitive tasks: domain tags, difficulty estimates, historical performance vectors. The embedding is the SEM's sensory interface to reality.",
+  "The Darwin-Gödel Machine Cognitive Core is the self-modification engine. A foundation language model generates candidate rewrites of the agent's own codebase: revised algorithms, updated heuristics, new search strategies. It operates in open-ended archive mode, drawing on the full history of variants for second-order self-improvement. This is where evolution happens.",
+  "The AE Evaluator computes AE(t) = dC(t)/dt by benchmarking the candidate agent on a representative subset of B(t). If AE_new > AE_prev, the modification is accepted and deployed. Otherwise, the system archives the candidate and reverts. The AE threshold is the thermodynamic acceptance criterion.",
+  "The Agent Archive stores all generated variants — successful and suboptimal — with their performance metadata. Thermodynamically, this is optimal per Landauer's principle: retaining is cheaper than erasing. Archived suboptimal variants may become optimal after environmental change; the archive is the SEM's evolutionary memory.",
+  "The Modular Self-Reconfiguring Robotics substrate interfaces the cognitive loop with physical embodiment. The DGM core issues morphological directives — reconfiguration plans — when physical adaptation is required. Directives are evaluated for physical feasibility before execution. In the cognitive-only formulation, this layer is architecturally present but inactive.",
+  "The Safety Monitor enforces alignment as a thermodynamic constraint embedded inside the evolution loop — not appended as an external guardrail. Three constraint classes: (1) resource bounds enforcing C_max as a hard physical limit; (2) alignment constraints preventing modification of the objective function; (3) stability constraints ensuring the sufficient condition for positive AE is not violated."
+];
+const layerColors=['#4fc4d8','#c9a84c','#c9a84c','#4fc4d8','#888888','#2ecc71'];
+
+function selectLayer(idx){
+  document.querySelectorAll('.layer-item').forEach((el,i)=>{el.classList.toggle('active',i===idx)});
+  document.getElementById('ldDesc').textContent=layerDescs[idx];
+  drawLayerVis(idx);
+}
+
+function drawLayerVis(idx){
+  const canvas=document.getElementById('layerCanvas');
+  const wrap=document.getElementById('ldVis');
+  canvas.width=wrap.offsetWidth;canvas.height=wrap.offsetHeight;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const W=canvas.width,H=canvas.height;
+  const col=layerColors[idx];
+
+  // Background
+  ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fillRect(0,0,W,H);
+
+  // Draw layer-specific diagram
+  if(idx===2){ // AE Evaluator: gauge
+    const cx=W/2,cy=H/2,r=Math.min(W,H)*.3;
+    ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=20;ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,2*Math.PI);ctx.stroke();
+    const aeVal=.65;
+    const grad=ctx.createLinearGradient(cx-r,cy,cx+r,cy);
+    grad.addColorStop(0,'#e05a2b');grad.addColorStop(.5,'#c9a84c');grad.addColorStop(1,'#2ecc71');
+    ctx.strokeStyle=grad;ctx.lineWidth=18;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,Math.PI+aeVal*Math.PI);ctx.stroke();
+    ctx.fillStyle=col;ctx.font='bold 14px DM Mono';ctx.textAlign='center';ctx.fillText('AE(t)',cx,cy+10);
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='11px DM Mono';ctx.fillText('dC(t)/dt',cx,cy+28);
+  } else if(idx===0){ // Encoder: signal waves
+    for(let i=0;i<4;i++){
+      ctx.strokeStyle=`rgba(79,196,216,${.2+i*.15})`;ctx.lineWidth=1.5;
+      ctx.beginPath();
+      for(let x=0;x<W;x++){ctx.lineTo(x,H/2+Math.sin(x*.04+(i*.8))*20*(i+1)*.25)}
+      ctx.stroke();
+    }
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();
+    for(let x=0;x<W;x++){ctx.lineTo(x,H/2+Math.sin(x*.04)*30*Math.exp(-Math.pow((x-W/2)/(W*.25),2)))}ctx.stroke();
+    ctx.fillStyle='rgba(79,196,216,0.6)';ctx.font='11px DM Mono';ctx.textAlign='center';ctx.fillText('physics-aware embedding →',W/2,H-24);
+  } else if(idx===1){ // DGM: code-like
+    ctx.fillStyle='rgba(201,168,76,0.08)';ctx.fillRect(0,0,W,H);
+    const lines=[' def evolve(A, Archive):','   mod = LLM.propose(A)','   C_new = evaluate(mod)','   if AE(C_new) > 0:','     A = mod','     Archive.add(mod)','   else:','     Archive.revert()'];
+    ctx.font='12px DM Mono';ctx.textAlign='left';
+    lines.forEach((l,i)=>{
+      ctx.fillStyle=i===4?'#c9a84c':i===5?'#2ecc71':i===7?'#e05a2b':'rgba(232,226,214,0.5)';
+      ctx.fillText(l,24,40+i*28);
+    });
+  } else if(idx===3){ // Archive: grid
+    const cols=8,rows=5,pw=(W-48)/(cols+1),ph=(H-48)/(rows+1);
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      const accepted=Math.random()>.3;
+      ctx.fillStyle=accepted?'rgba(201,168,76,0.5)':'rgba(100,100,100,0.2)';
+      ctx.beginPath();ctx.roundRect(24+c*pw+pw*.1,24+r*ph+ph*.1,pw*.8,ph*.8,3);ctx.fill();
+    }
+    ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='10px DM Mono';ctx.textAlign='center';ctx.fillText('AGENT VARIANTS (accepted=gold)',W/2,H-16);
+  } else if(idx===4){ // MSRR
+    const cx=W/2,cy=H/2;
+    [[0,-1],[.87,.5],[-.87,.5]].forEach(([dx,dy],i)=>{
+      ctx.strokeStyle='rgba(136,136,136,0.5)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+dx*60,cy+dy*60);ctx.stroke();
+      ctx.fillStyle='rgba(136,136,136,0.4)';ctx.beginPath();ctx.arc(cx+dx*70,cy+dy*70,16,0,Math.PI*2);ctx.fill();
+    });
+    ctx.fillStyle='rgba(136,136,136,0.7)';ctx.beginPath();ctx.arc(cx,cy,20,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px DM Mono';ctx.textAlign='center';ctx.fillText('MSRR',cx,H-20);
+  } else { // Safety: shield
+    const cx=W/2,cy=H*.45;
+    ctx.strokeStyle='rgba(46,204,113,0.6)';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(cx,cy-50);ctx.lineTo(cx+40,cy-25);ctx.lineTo(cx+40,cy+20);ctx.quadraticCurveTo(cx+40,cy+60,cx,cy+70);ctx.quadraticCurveTo(cx-40,cy+60,cx-40,cy+20);ctx.lineTo(cx-40,cy-25);ctx.closePath();ctx.stroke();
+    ctx.fillStyle='rgba(46,204,113,0.15)';ctx.fill();
+    ctx.fillStyle='#2ecc71';ctx.font='13px DM Mono';ctx.textAlign='center';ctx.fillText('✓',cx,cy+18);
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='9px DM Mono';ctx.fillText('ALIGNMENT CONSTRAINT',cx,H-16);
+  }
+}
+
+// Initialise layer detail
+setTimeout(()=>drawLayerVis(0),500);
+window.addEventListener('resize',()=>{const a=document.querySelector('.layer-item.active');if(a){const idx=Array.from(document.querySelectorAll('.layer-item')).indexOf(a);drawLayerVis(idx)}});
+
+// ─── LIVE SIMULATION ────────────────────────────────────────
+let simRunning=false,simTimer=null;
+let SP={lcog:.05,lphys:.03,sigma:.08,pfail:.07};
+let simData={sem:[8.5],rl:[8.5],stat:[8.5],ae:[0],t:0};
+const CMAX=4000,MUFL=.3,ALPHA=.7,BETA=.3;
+
+function updateParam(k,v){
+  SP[k]=parseFloat(v);
+  document.getElementById('v-'+k).textContent=parseFloat(v).toFixed(3);
+  if(simRunning){simReset();simToggle();}
+}
+
+function simStep(){
+  const d=simData;
+  const t=d.t;
+  const leff=ALPHA*SP.lcog+BETA*SP.lphys;
+  const dk=.0001*Math.pow(d.sem[t]/100,.5);
+  const xi=()=>(Math.random()+Math.random()+Math.random()-1.5)*1.2;
+  const fail=()=>Math.random()<SP.pfail;
+
+  // SEM
+  const prevC=d.sem[t];
+  const F=fail()?0:1;
+  const growth=F*(leff*prevC*(1-prevC/CMAX)-dk)+SP.sigma*prevC*xi();
+  const newC=Math.max(.1,prevC+growth);
+  d.sem.push(newC);
+
+  // RL
+  const prevRL=d.rl[t];
+  const rlGrow=.008*prevRL*(1-prevRL/(CMAX*.1))+.03*xi();
+  d.rl.push(Math.max(.1,prevRL+rlGrow));
+
+  // Static
+  d.stat.push(d.stat[0]*(1+xi()*.01));
+
+  // AE rolling
+  const ae=t>5?(d.sem[t+1]-d.sem[t-4])/5:d.sem[t+1]-d.sem[t];
+  d.ae.push(ae);
+  d.t++;
+
+  // Update metrics
+  document.getElementById('m-sem').textContent=newC.toFixed(1);
+  document.getElementById('m-rl').textContent=d.rl[t+1].toFixed(1);
+  document.getElementById('m-ae').textContent=ae.toFixed(3);
+  document.getElementById('m-cycle').textContent=d.t;
+
+  // Regime check
+  const noiseCheck=SP.sigma*SP.sigma/2>leff-SP.pfail*MUFL;
+  const satCheck=newC>CMAX*.9;
+  const regime=noiseCheck?'⚠ FR-1: NOISE DOMINANCE':satCheck?'⚠ FR-2: RESOURCE SATURATION':'✓ SUSTAINED POSITIVE AE';
+  document.getElementById('regime-indicator').textContent='REGIME: '+regime;
+
+  drawSimCanvas();
+  if(d.t>=150){simToggle();document.getElementById('simBtn').textContent='▶ RUN SIMULATION'}
+}
+
+function drawSimCanvas(){
+  const canvas=document.getElementById('sim-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const d=simData;
+  const maxC=Math.max(...d.sem)*1.15;
+  const toY=c=>H-40-(c/maxC)*(H-60);
+  const toX=i=>(i/(150))*W;
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=40+i*(H-60)/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+
+  // Lines
+  const drawLine=(data,color,dash=[])=>{
+    if(data.length<2)return;
+    ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash);
+    ctx.beginPath();data.forEach((v,i)=>{const x=toX(i),y=toY(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});ctx.stroke();ctx.setLineDash([]);
+  };
+  drawLine(d.stat,'rgba(100,100,100,0.5)',[4,4]);
+  drawLine(d.rl,'rgba(79,196,216,0.6)',[]);
+  drawLine(d.sem,'rgba(201,168,76,0.9)',[]);
+
+  // Legend
+  ctx.font='10px DM Mono';
+  [[d.sem,'rgba(201,168,76,0.9)','SEM'],[d.rl,'rgba(79,196,216,0.6)','RL'],[d.stat,'rgba(100,100,100,0.5)','STATIC']].forEach(([data,col,label],i)=>{
+    ctx.fillStyle=col;ctx.fillRect(12,12+i*18,20,2);
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.fillText(label,38,16+i*18);
+  });
+
+  // AE overlay (secondary axis, small)
+  if(d.ae.length>2){
+    ctx.strokeStyle='rgba(224,90,43,0.5)';ctx.lineWidth=1;
+    ctx.beginPath();d.ae.forEach((v,i)=>{const x=toX(i),y=H-20-v*8;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)});ctx.stroke();
+    ctx.fillStyle='rgba(224,90,43,0.5)';ctx.font='9px DM Mono';ctx.fillText('AE(t)',W-36,H-10);
+  }
+}
+
+function simToggle(){
+  if(simRunning){
+    clearInterval(simTimer);simRunning=false;
+    document.getElementById('simBtn').textContent='▶ RESUME';
+  } else {
+    simRunning=true;
+    document.getElementById('simBtn').textContent='■ PAUSE';
+    simTimer=setInterval(simStep,60);
+  }
+}
+
+function simReset(){
+  clearInterval(simTimer);simRunning=false;
+  simData={sem:[8.5],rl:[8.5],stat:[8.5],ae:[0],t:0};
+  document.getElementById('simBtn').textContent='▶ RUN SIMULATION';
+  document.getElementById('m-sem').textContent='—';
+  document.getElementById('m-rl').textContent='—';
+  document.getElementById('m-ae').textContent='—';
+  document.getElementById('m-cycle').textContent='0';
+  const canvas=document.getElementById('sim-canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+}
+
+// Size sim canvas
+(function(){
+  const c=document.getElementById('sim-canvas');
+  const parent=c.parentElement;
+  c.width=parent.offsetWidth;c.height=400;
+  window.addEventListener('resize',()=>{c.width=parent.offsetWidth});
+})();
+
+// ─── ARCHITECTURE DIAGRAM (Canvas) ──────────────────────────
+(function(){
+  const c=document.getElementById('arch-canvas');
+  const ctx=c.getContext('2d');
+  let W,H;
+  function resize(){W=c.width=c.offsetWidth;H=c.height=460}
+  resize();window.addEventListener('resize',()=>{resize();draw()});
+
+  const steps=[
+    {label:'INIT',desc:'A ← A₀ · Archive ← {A₀} · C_prev ← eval(A,B)',col:'#4fc4d8'},
+    {label:'ENCODE',desc:'state ← encode(task_signal, sensor_data)',col:'#4fc4d8'},
+    {label:'PROPOSE',desc:'A_cand ← DGM_core.propose(A, state, Archive)',col:'#c9a84c'},
+    {label:'SAFETY?',desc:'if violates(A_cand, S, R) → archive & skip',col:'#2ecc71'},
+    {label:'EVAL',desc:'C_new ← evaluate(A_cand, B)',col:'#c9a84c'},
+    {label:'AE > 0?',desc:'AE_new = (C_new − C_prev)/Δt',col:'#c9a84c'},
+    {label:'ACCEPT',desc:'A ← A_cand · C_prev ← C_new · Archive.add',col:'#2ecc71'},
+    {label:'REVERT',desc:'Archive.add(suboptimal) · A ← best_from_archive',col:'#e05a2b'},
+    {label:'ADVANCE',desc:'B ← B.advance_difficulty(C_prev) · t ← t+1',col:'#4fc4d8'},
+  ];
+
+  let hovIdx=-1;
+  c.addEventListener('mousemove',e=>{
+    const rect=c.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*(W/rect.width),my=(e.clientY-rect.top)*(H/rect.height);
+    const bw=Math.min(W/steps.length*.85,110),bh=60,gap=W/steps.length;
+    hovIdx=-1;
+    steps.forEach((_,i)=>{const bx=i*gap+gap*.075,by=H/2-bh/2;if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh)hovIdx=i});
+    draw();
+  });
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const bw=Math.min(W/steps.length*.85,110),bh=60,gap=W/steps.length;
+    steps.forEach((s,i)=>{
+      const bx=i*gap+gap*.075,by=H/2-bh/2;
+      const hov=hovIdx===i;
+      ctx.fillStyle=hov?s.col+'33':'rgba(255,255,255,0.03)';
+      ctx.strokeStyle=hov?s.col:'rgba(255,255,255,0.1)';
+      ctx.lineWidth=hov?1.5:1;
+      ctx.beginPath();ctx.roundRect(bx,by,bw,bh,4);ctx.fill();ctx.stroke();
+
+      ctx.fillStyle=hov?s.col:'rgba(255,255,255,0.5)';ctx.font=`bold 10px DM Mono`;ctx.textAlign='center';
+      ctx.fillText(s.label,bx+bw/2,by+bh/2+4);
+
+      if(i<steps.length-1){
+        const nx=(i+1)*gap+gap*.075;
+        ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+        ctx.beginPath();ctx.moveTo(bx+bw,H/2);ctx.lineTo(nx,H/2);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle='rgba(255,255,255,0.12)';ctx.font='10px DM Mono';
+        ctx.fillText('→',bx+bw+(nx-bx-bw)/2,H/2+4);
+      }
+
+      if(hov){
+        ctx.fillStyle='rgba(10,10,15,0.95)';
+        const tw=Math.min(ctx.measureText(s.desc).width+24,300);
+        const tx=Math.max(4,Math.min(W-tw-4,bx+bw/2-tw/2));
+        const ty=by-48;
+        ctx.beginPath();ctx.roundRect(tx,ty,tw,36,4);ctx.fill();
+        ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;ctx.stroke();
+        ctx.fillStyle='rgba(232,226,214,0.6)';ctx.font='9px DM Mono';ctx.textAlign='left';
+        ctx.fillText(s.desc,tx+12,ty+14);ctx.textAlign='center';
+      }
+    });
+
+    // Return arc for loop
+    ctx.strokeStyle='rgba(201,168,76,0.2)';ctx.lineWidth=1;ctx.setLineDash([3,5]);
+    ctx.beginPath();
+    ctx.moveTo(steps.length*gap,H/2);ctx.bezierCurveTo(W+20,H/2,W+20,H*.8,steps.length*gap/2,H*.85);
+    ctx.bezierCurveTo(0,H*.85,-20,H/2,gap*.075,H/2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(201,168,76,0.4)';ctx.font='9px DM Mono';ctx.textAlign='center';
+    ctx.fillText('REPEAT UNTIL t = T',W/2,H*.92);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
